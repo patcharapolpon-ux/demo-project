@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/01-requirements/01-spec/index.md",
+                "file": "docs/01-requirements/backlog.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "index"
+              "title": "backlog"
             }
           }
         ]
@@ -189,5 +189,22 @@
     }
   },
   "active": "b2d3379c263c1281",
-  "lastOpenFiles": []
+  "lastOpenFiles": [
+    "docs/01-requirements/03-task/index.md",
+    "docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md",
+    "docs/01-requirements/01-spec/index.md",
+    "docs/04-retrospectives/index.md",
+    "docs/05-log/20260802-log.md",
+    "CLAUDE.md",
+    "docs/01-requirements/backlog.md",
+    "docs/05-log/index.md",
+    "docs/03-testing/index.md",
+    "docs/03-testing/02-test-result/index.md",
+    "docs/02-design/02-technical/index.md",
+    "docs/02-design/index.md",
+    "docs/02-design/01-prototypes/index.md",
+    "docs/01-requirements/index.md",
+    "docs/01-requirements/02-plan/index.md",
+    "docs/00-archived/index.md"
+  ]
 }
