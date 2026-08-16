@@ -1,0 +1,548 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ปรับตัวเลือกเมนู - สั่งกาแฟจากโต๊ะ QR</title>
+<!--
+  Mockup: หน้าเลือกตัวเลือกเสริมเมนู (product detail / customize) (ขั้นตอน 4 ใน user journey)
+  Requirement: docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md (20260802-001)
+  Journey: docs/02-design/01-prototypes/20260802-001-table-qr-ordering-journey.md
+  บทบาท: ลูกค้า — ปรับตัวเลือกเสริมครบทุกมิติตาม scope: ขนาด, ร้อน/เย็น, ความหวาน, ชนิดนม, ท็อปปิ้ง/เพิ่มช็อต, หมายเหตุ free text
+  ตัวอย่างเมนูที่ใช้สาธิต (fallback เมื่อไม่มี query param): ลาเต้เย็น
+
+  หมายเหตุ interactive prototype (2026-08-16): เชื่อมโยง 4 หน้าจอผ่าน vanilla JS + localStorage (ไม่มี backend จริง)
+  - อ่านชื่อ/ราคา/ไอคอนเมนูจาก query string ?item={slug} ถ้าไม่มี/ไม่พบ ให้ fallback เป็น "ลาเต้เย็น" ตามที่ mockup เดิมสาธิตไว้
+  - ราคารวมคำนวณจาก (ราคาฐาน + ราคาท็อปปิ้งที่เลือก) x จำนวน แล้วอัปเดตทันทีเมื่อผู้ใช้เปลี่ยนตัวเลือก (ดุลยพินิจ: รวมผลของ "จำนวน" เข้าไปในสูตรราคาด้วย เพราะเป็นการคำนวณราคารวมที่ถูกต้องตามธรรมชาติของตะกร้าสินค้า แม้ spec จะเน้นเรื่องท็อปปิ้ง/ตัวเลือกเป็นหลัก)
+  - ปุ่ม "เพิ่มลงตะกร้า" บันทึกรายการลง localStorage key "coffeeOrderCart" (array เดียวกันกับหน้าเมนู/ตะกร้า) แล้วแสดง toast แจ้งเตือนก่อน navigate กลับหน้าเมนู
+-->
+<style>
+  :root {
+    --color-primary: #FF6B00;
+    --color-secondary: #000000;
+    --color-background: #FFFFFF;
+    --color-text-primary: #111111;
+    --color-text-secondary: #666666;
+    --color-status-pending: #999999;
+    --color-status-progress: #FF6B00;
+    --color-status-done: #2E7D32;
+    --color-status-unavailable: #B00020;
+
+    --font-family-base: 'Noto Sans Thai', 'IBM Plex Sans Thai', sans-serif;
+    --font-size-h1: 28px;
+    --font-size-h2: 22px;
+    --font-size-h3: 18px;
+    --font-size-body: 16px;
+    --font-size-caption: 14px;
+    --font-size-button: 16px;
+
+    --space-small: 8px;
+    --space-medium: 16px;
+    --space-large: 24px;
+
+    --radius-button: 12px;
+    --radius-card: 16px;
+    --radius-input: 8px;
+
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+    --touch-target-min: 44px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-family-base);
+    background: #FAFAFA;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    line-height: 1.5;
+    padding-bottom: 96px;
+  }
+  h1 { font-size: var(--font-size-h1); font-weight: 700; }
+  h2 { font-size: var(--font-size-h2); font-weight: 700; }
+  h3 { font-size: var(--font-size-h3); font-weight: 700; }
+
+  .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .btn-back {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .product-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-large) var(--space-medium);
+    gap: var(--space-small);
+  }
+  .product-hero-image {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+  }
+  .product-hero .price {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+
+  .option-section {
+    padding: 0 var(--space-medium) var(--space-large);
+  }
+  .option-section h2 {
+    margin-bottom: var(--space-medium);
+  }
+  .option-section .caption-note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    margin-top: -8px;
+    margin-bottom: var(--space-medium);
+    display: block;
+  }
+
+  .pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-small);
+  }
+  .pill-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+    padding: var(--space-small) var(--space-medium);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--radius-button);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-body);
+  }
+  .pill-option input {
+    display: none;
+  }
+  .pill-option.selected {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 500;
+  }
+
+  .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-small);
+  }
+  .checkbox-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    min-height: var(--touch-target-min);
+  }
+  .checkbox-row label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    flex: 1;
+  }
+  .checkbox-row .extra-price {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-caption);
+  }
+  .checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--color-primary);
+  }
+
+  textarea {
+    border: 1px solid #E0E0E0;
+    border-radius: var(--radius-input);
+    padding: var(--space-medium);
+    font-family: inherit;
+    font-size: var(--font-size-body);
+    color: var(--color-text-primary);
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+  }
+  textarea::placeholder { color: var(--color-text-secondary); }
+  textarea:focus { outline: none; border-color: var(--color-primary); }
+
+  .qty-stepper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  .qty-btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border-radius: var(--radius-button);
+    border: 1px solid var(--color-secondary);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  .qty-value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+    min-width: 24px;
+    text-align: center;
+  }
+
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-background);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  .bottom-bar .total-price {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .bottom-bar .total-price .caption {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  .bottom-bar .total-price .value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+  .btn-primary {
+    flex: 1;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    min-height: var(--touch-target-min);
+    padding: var(--space-medium);
+    cursor: pointer;
+  }
+
+  .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 96px;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--color-secondary);
+    color: #fff;
+    padding: var(--space-small) var(--space-medium);
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-body);
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+    text-align: center;
+    max-width: calc(100% - (var(--space-large) * 2));
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <button class="btn-back" aria-label="ย้อนกลับไปหน้าเมนู">←</button>
+    <h1>ปรับตัวเลือกเมนู</h1>
+  </header>
+
+  <div class="product-hero">
+    <div class="product-hero-image" id="productImage">🧊</div>
+    <h2 id="productName">ลาเต้เย็น</h2>
+    <p class="price" id="productBasePrice">฿60</p>
+  </div>
+
+  <form id="optionForm">
+    <section class="option-section">
+      <h2>ขนาด</h2>
+      <div class="pill-group">
+        <label class="pill-option"><input type="radio" name="size">S</label>
+        <label class="pill-option selected"><input type="radio" name="size" checked>M</label>
+        <label class="pill-option"><input type="radio" name="size">L</label>
+      </div>
+    </section>
+
+    <section class="option-section">
+      <h2>ร้อน/เย็น</h2>
+      <div class="pill-group">
+        <label class="pill-option"><input type="radio" name="temp">ร้อน</label>
+        <label class="pill-option selected"><input type="radio" name="temp" checked>เย็น</label>
+      </div>
+    </section>
+
+    <section class="option-section">
+      <h2>ระดับความหวาน</h2>
+      <div class="pill-group">
+        <label class="pill-option"><input type="radio" name="sweet">0%</label>
+        <label class="pill-option"><input type="radio" name="sweet">25%</label>
+        <label class="pill-option selected"><input type="radio" name="sweet" checked>50%</label>
+        <label class="pill-option"><input type="radio" name="sweet">75%</label>
+        <label class="pill-option"><input type="radio" name="sweet">100%</label>
+      </div>
+    </section>
+
+    <section class="option-section">
+      <h2>ชนิดนม</h2>
+      <div class="pill-group">
+        <label class="pill-option selected"><input type="radio" name="milk" checked>นมสด</label>
+        <label class="pill-option"><input type="radio" name="milk">นมพร่องมันเนย</label>
+        <label class="pill-option"><input type="radio" name="milk">นมอัลมอนด์</label>
+        <label class="pill-option"><input type="radio" name="milk">ไม่ใส่นม</label>
+      </div>
+    </section>
+
+    <section class="option-section">
+      <h2>ท็อปปิ้ง/เพิ่มช็อต</h2>
+      <span class="caption-note">เลือกได้มากกว่า 1 รายการ</span>
+      <div class="checkbox-list">
+        <div class="checkbox-row">
+          <label><input type="checkbox" data-topping="เพิ่มช็อตเอสเพรสโซ" data-price="15" checked> เพิ่มช็อตเอสเพรสโซ</label>
+          <span class="extra-price">+฿15</span>
+        </div>
+        <div class="checkbox-row">
+          <label><input type="checkbox" data-topping="วิปครีม" data-price="10"> วิปครีม</label>
+          <span class="extra-price">+฿10</span>
+        </div>
+        <div class="checkbox-row">
+          <label><input type="checkbox" data-topping="ไข่มุก" data-price="10"> ไข่มุก</label>
+          <span class="extra-price">+฿10</span>
+        </div>
+        <div class="checkbox-row">
+          <label><input type="checkbox" data-topping="เจลลี่กาแฟ" data-price="10"> เจลลี่กาแฟ</label>
+          <span class="extra-price">+฿10</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="option-section">
+      <h2>หมายเหตุพิเศษ</h2>
+      <textarea id="noteInput" placeholder="เช่น หวานน้อย ไม่ใส่น้ำแข็ง แยกน้ำแข็ง ฯลฯ"></textarea>
+    </section>
+
+    <section class="option-section">
+      <h2>จำนวน</h2>
+      <div class="qty-stepper">
+        <button type="button" class="qty-btn" id="qtyMinus" aria-label="ลดจำนวน">−</button>
+        <span class="qty-value" id="qtyValue">1</span>
+        <button type="button" class="qty-btn" id="qtyPlus" aria-label="เพิ่มจำนวน">+</button>
+      </div>
+    </section>
+  </form>
+
+  <div class="bottom-bar">
+    <div class="total-price">
+      <span class="caption">ราคารวม</span>
+      <span class="value" id="totalPrice">฿85</span>
+    </div>
+    <button class="btn-primary" id="addToCartBtn" type="button">เพิ่มลงตะกร้า</button>
+  </div>
+
+  <div class="toast" id="toast"></div>
+
+  <script>
+    (function () {
+      var CART_KEY = 'coffeeOrderCart';
+
+      var MENU_ITEMS = {
+        'latte-hot': { name: 'ลาเต้ร้อน', price: 55, image: '☕' },
+        'latte-iced': { name: 'ลาเต้เย็น', price: 60, image: '🧊' },
+        'cappuccino-iced': { name: 'คาปูชิโน่เย็น', price: 60, image: '☕' },
+        'americano': { name: 'อเมริกาโน่', price: 45, image: '☕' },
+        'chocolate-iced': { name: 'ช็อกโกแลตเย็น', price: 60, image: '🍫' },
+        'matcha-latte': { name: 'ชาเขียวลาเต้', price: 60, image: '🍵' },
+        'brownie': { name: 'บราวนี่', price: 50, image: '🍰' }
+      };
+      var DEFAULT_SLUG = 'latte-iced';
+
+      var currentItem = { slug: DEFAULT_SLUG };
+      var qty = 1;
+
+      function getCart() {
+        try {
+          var raw = localStorage.getItem(CART_KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveCart(cart) {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      }
+
+      function formatBaht(amount) {
+        return '฿' + amount;
+      }
+
+      function getSelectedPillLabel(name) {
+        var checked = document.querySelector('input[name="' + name + '"]:checked');
+        if (!checked) return '';
+        return checked.closest('.pill-option').textContent.trim();
+      }
+
+      function getSelectedToppings() {
+        return Array.prototype.slice.call(document.querySelectorAll('.checkbox-row input[type="checkbox"]:checked'));
+      }
+
+      function calcTotal() {
+        var base = currentItem.price || 0;
+        var toppingsTotal = getSelectedToppings().reduce(function (sum, el) {
+          return sum + (Number(el.dataset.price) || 0);
+        }, 0);
+        return (base + toppingsTotal) * qty;
+      }
+
+      function updateTotalDisplay() {
+        var total = calcTotal();
+        var totalEl = document.getElementById('totalPrice');
+        if (totalEl) totalEl.textContent = formatBaht(total);
+      }
+
+      function initProductFromQuery() {
+        var params = new URLSearchParams(window.location.search);
+        var slug = params.get('item');
+        var data = (slug && MENU_ITEMS[slug]) ? MENU_ITEMS[slug] : MENU_ITEMS[DEFAULT_SLUG];
+        currentItem = { slug: (slug && MENU_ITEMS[slug]) ? slug : DEFAULT_SLUG, name: data.name, price: data.price, image: data.image };
+
+        document.getElementById('productName').textContent = currentItem.name;
+        document.getElementById('productImage').textContent = currentItem.image;
+        document.getElementById('productBasePrice').textContent = formatBaht(currentItem.price);
+      }
+
+      function bindPillOptions() {
+        document.querySelectorAll('.pill-group').forEach(function (group) {
+          var options = group.querySelectorAll('.pill-option');
+          options.forEach(function (option) {
+            var input = option.querySelector('input');
+            input.addEventListener('change', function () {
+              options.forEach(function (o) { o.classList.remove('selected'); });
+              option.classList.add('selected');
+              updateTotalDisplay();
+            });
+          });
+        });
+      }
+
+      function bindToppings() {
+        document.querySelectorAll('.checkbox-row input[type="checkbox"]').forEach(function (checkbox) {
+          checkbox.addEventListener('change', updateTotalDisplay);
+        });
+      }
+
+      function bindQtyStepper() {
+        var qtyValueEl = document.getElementById('qtyValue');
+        document.getElementById('qtyMinus').addEventListener('click', function () {
+          if (qty > 1) qty -= 1;
+          qtyValueEl.textContent = String(qty);
+          updateTotalDisplay();
+        });
+        document.getElementById('qtyPlus').addEventListener('click', function () {
+          qty += 1;
+          qtyValueEl.textContent = String(qty);
+          updateTotalDisplay();
+        });
+      }
+
+      function showToast(message) {
+        var toast = document.getElementById('toast');
+        toast.textContent = message;
+        toast.classList.add('show');
+      }
+
+      function bindAddToCart() {
+        document.getElementById('addToCartBtn').addEventListener('click', function () {
+          var toppings = getSelectedToppings().map(function (el) { return el.dataset.topping; });
+          var optionsParts = [
+            'ขนาด ' + getSelectedPillLabel('size'),
+            getSelectedPillLabel('temp'),
+            'หวาน ' + getSelectedPillLabel('sweet'),
+            getSelectedPillLabel('milk')
+          ];
+          if (toppings.length > 0) optionsParts.push(toppings.join(', '));
+          var optionsText = optionsParts.filter(Boolean).join(' · ');
+
+          var note = document.getElementById('noteInput').value.trim();
+          var unitPrice = currentItem.price + toppings.reduce(function (sum, name) {
+            var el = Array.prototype.find.call(document.querySelectorAll('.checkbox-row input[type="checkbox"]'), function (i) { return i.dataset.topping === name; });
+            return sum + (el ? Number(el.dataset.price) : 0);
+          }, 0);
+
+          var cartItem = {
+            id: 'item-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            slug: currentItem.slug,
+            name: currentItem.name,
+            image: currentItem.image,
+            qty: qty,
+            unitPrice: unitPrice,
+            totalPrice: unitPrice * qty,
+            optionsText: optionsText,
+            note: note
+          };
+
+          var cart = getCart();
+          cart.push(cartItem);
+          saveCart(cart);
+
+          showToast('เพิ่ม ' + currentItem.name + ' ลงตะกร้าแล้ว');
+
+          window.setTimeout(function () {
+            window.location.href = '001-menu.html';
+          }, 900);
+        });
+      }
+
+      function bindBackButton() {
+        document.querySelector('.btn-back').addEventListener('click', function () {
+          window.location.href = '001-menu.html';
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        initProductFromQuery();
+        bindPillOptions();
+        bindToppings();
+        bindQtyStepper();
+        bindAddToCart();
+        bindBackButton();
+        updateTotalDisplay();
+      });
+    })();
+  </script>
+
+</body>
+</html>

@@ -1,0 +1,1472 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>สั่งกาแฟจากโต๊ะ QR - Standalone Prototype</title>
+<!--
+  Mockup: Standalone single-file prototype รวม 4 หน้าจอฝั่งลูกค้าของ requirement 20260802-001
+  (หน้าเมนู, หน้าปรับตัวเลือกเมนู, หน้าตะกร้า, หน้าสถานะออเดอร์) เข้าเป็นไฟล์เดียว
+  Requirement: docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md (20260802-001)
+  Journey: docs/02-design/01-prototypes/20260802-001-table-qr-ordering-journey.md
+  บทบาท: ลูกค้า
+
+  หมายเหตุ (2026-08-16): ไฟล์นี้แปลงมาจากชุด interactive prototype แบบหลายไฟล์
+  (001-menu.html, 001-product-detail.html, 001-cart.html, 001-order-status.html)
+  ให้เป็นไฟล์เดียวที่เปิดตรงผ่าน file:// ได้ทันที ไม่ต้องรัน local web server:
+  - แต่ละหน้าจอเดิมกลายเป็น <section class="screen" id="screen-{slug}"> ซ่อน/แสดงด้วย
+    ฟังก์ชัน showScreen(slug) แทนการ navigate ข้ามไฟล์จริง
+  - state ตะกร้า (cart), ออเดอร์ล่าสุด (lastOrder) และสถานะออเดอร์ (orderStatus) เก็บเป็น
+    ตัวแปร JS ในหน่วยความจำเท่านั้น (ไม่ใช้ localStorage) — รีเฟรชหน้าเว็บจะรีเซ็ต state ทั้งหมด
+  - ข้อมูลเมนูที่เลือกจากหน้าเมนู ถูกส่งไปหน้าปรับตัวเลือกผ่านตัวแปร JS (currentItem)
+    แทนการอ่าน query string ?item=slug แบบไฟล์แยกเดิม
+  - แก้บั๊กที่พบระหว่างทดสอบชุดไฟล์แยก: checkbox "เพิ่มช็อตเอสเพรสโซ" ไม่ default checked อีกต่อไป
+    ราคารวมเริ่มต้นของหน้าปรับตัวเลือกจึงตรงกับราคาฐานของเมนูที่เลือกจริง
+  - business rule/เนื้อหาภาษาไทย/ดีไซน์โทเคนทั้งหมดคงไว้ตามต้นฉบับ 4 ไฟล์ทุกจุด (เมนู 7 รายการ
+    รวมคาปูชิโน่เย็น "หมด", ตัวเลือกเสริมครบทุกมิติ, หมายเหตุชำระเงินที่เคาน์เตอร์, step indicator 4 ขั้น)
+  - เริ่มต้นที่หน้าเมนู (screen-menu) เป็น section active เริ่มต้นเสมอ
+-->
+<style>
+  :root {
+    --color-primary: #FF6B00;
+    --color-secondary: #000000;
+    --color-background: #FFFFFF;
+    --color-text-primary: #111111;
+    --color-text-secondary: #666666;
+    --color-status-pending: #999999;
+    --color-status-progress: #FF6B00;
+    --color-status-done: #2E7D32;
+    --color-status-unavailable: #B00020;
+
+    --font-family-base: 'Noto Sans Thai', 'IBM Plex Sans Thai', sans-serif;
+    --font-size-h1: 28px;
+    --font-size-h2: 22px;
+    --font-size-h3: 18px;
+    --font-size-body: 16px;
+    --font-size-caption: 14px;
+    --font-size-button: 16px;
+
+    --space-small: 8px;
+    --space-medium: 16px;
+    --space-large: 24px;
+
+    --radius-button: 12px;
+    --radius-card: 16px;
+    --radius-input: 8px;
+
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+    --touch-target-min: 44px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-family-base);
+    background: #FAFAFA;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    line-height: 1.5;
+  }
+  h1 { font-size: var(--font-size-h1); font-weight: 700; }
+  h2 { font-size: var(--font-size-h2); font-weight: 700; }
+  h3 { font-size: var(--font-size-h3); font-weight: 700; }
+
+  .screen { display: none; }
+  .screen.active { display: block; }
+
+  /* ===== หน้าเมนู (screen-menu) ===== */
+  #screen-menu { padding-bottom: var(--space-large); }
+  #screen-menu .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #screen-menu .topbar-title { display: flex; flex-direction: column; gap: 4px; }
+  #screen-menu .table-badge {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-menu .cart-icon-btn {
+    position: relative;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    background: var(--color-background);
+    font-size: 24px;
+    cursor: pointer;
+  }
+  #screen-menu .cart-count {
+    position: absolute;
+    top: 2px;
+    right: 2px;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 11px;
+    font-weight: 700;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 999px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  #screen-menu .category-tabs {
+    display: flex;
+    gap: var(--space-small);
+    padding: var(--space-medium);
+    overflow-x: auto;
+  }
+  #screen-menu .tab {
+    flex-shrink: 0;
+    border: 1px solid var(--color-secondary);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    border-radius: var(--radius-button);
+    padding: var(--space-small) var(--space-medium);
+    font-size: var(--font-size-body);
+    min-height: var(--touch-target-min);
+    cursor: pointer;
+  }
+  #screen-menu .tab.active {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 500;
+  }
+  #screen-menu .menu-section {
+    padding: 0 var(--space-medium) var(--space-large);
+  }
+  #screen-menu .menu-section h2 {
+    margin-bottom: var(--space-medium);
+  }
+  #screen-menu .menu-card {
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    margin-bottom: var(--space-medium);
+  }
+  #screen-menu .menu-card.clickable { cursor: pointer; }
+  #screen-menu .menu-card.unavailable { cursor: not-allowed; }
+  #screen-menu .menu-card-image {
+    flex-shrink: 0;
+    width: 64px;
+    height: 64px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+  }
+  #screen-menu .menu-card-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  #screen-menu .menu-card-info .price {
+    color: var(--color-text-primary);
+    font-weight: 700;
+  }
+  #screen-menu .status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-small);
+    padding: 2px var(--space-small);
+    border-radius: 999px;
+    font-size: var(--font-size-caption);
+    font-weight: 500;
+    width: fit-content;
+  }
+  #screen-menu .status-badge::before { content: ''; width: 8px; height: 8px; border-radius: 50%; flex-shrink: 0; }
+  #screen-menu .status-unavailable { background: rgba(176,0,32,0.15); color: var(--color-status-unavailable); }
+  #screen-menu .status-unavailable::before { background: var(--color-status-unavailable); }
+  #screen-menu .btn-add {
+    flex-shrink: 0;
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border-radius: var(--radius-button);
+    border: none;
+    background: var(--color-primary);
+    color: #fff;
+    font-size: 20px;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  #screen-menu .btn-add:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  #screen-menu .menu-card.unavailable .menu-card-image { opacity: 0.5; }
+
+  /* ===== หน้าปรับตัวเลือกเมนู (screen-detail) ===== */
+  #screen-detail { padding-bottom: 96px; }
+  #screen-detail .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #screen-detail .btn-back {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  #screen-detail .product-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: var(--space-large) var(--space-medium);
+    gap: var(--space-small);
+  }
+  #screen-detail .product-hero-image {
+    width: 120px;
+    height: 120px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 56px;
+  }
+  #screen-detail .product-hero .price {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+  #screen-detail .option-section {
+    padding: 0 var(--space-medium) var(--space-large);
+  }
+  #screen-detail .option-section h2 {
+    margin-bottom: var(--space-medium);
+  }
+  #screen-detail .option-section .caption-note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    margin-top: -8px;
+    margin-bottom: var(--space-medium);
+    display: block;
+  }
+  #screen-detail .pill-group {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-small);
+  }
+  #screen-detail .pill-option {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+    padding: var(--space-small) var(--space-medium);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--radius-button);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    cursor: pointer;
+    font-size: var(--font-size-body);
+  }
+  #screen-detail .pill-option input {
+    display: none;
+  }
+  #screen-detail .pill-option.selected {
+    background: var(--color-primary);
+    border-color: var(--color-primary);
+    color: #fff;
+    font-weight: 500;
+  }
+  #screen-detail .checkbox-list {
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-small);
+  }
+  #screen-detail .checkbox-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    min-height: var(--touch-target-min);
+  }
+  #screen-detail .checkbox-row label {
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    flex: 1;
+  }
+  #screen-detail .checkbox-row .extra-price {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-caption);
+  }
+  #screen-detail .checkbox-row input[type="checkbox"] {
+    width: 20px;
+    height: 20px;
+    accent-color: var(--color-primary);
+  }
+  #screen-detail textarea {
+    border: 1px solid #E0E0E0;
+    border-radius: var(--radius-input);
+    padding: var(--space-medium);
+    font-family: inherit;
+    font-size: var(--font-size-body);
+    color: var(--color-text-primary);
+    width: 100%;
+    min-height: 80px;
+    resize: vertical;
+  }
+  #screen-detail textarea::placeholder { color: var(--color-text-secondary); }
+  #screen-detail textarea:focus { outline: none; border-color: var(--color-primary); }
+  #screen-detail .qty-stepper {
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  #screen-detail .qty-btn {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border-radius: var(--radius-button);
+    border: 1px solid var(--color-secondary);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    font-size: 20px;
+    cursor: pointer;
+  }
+  #screen-detail .qty-value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+    min-width: 24px;
+    text-align: center;
+  }
+  #screen-detail .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-background);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  #screen-detail .bottom-bar .total-price {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #screen-detail .bottom-bar .total-price .caption {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-detail .bottom-bar .total-price .value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+  #screen-detail .btn-primary {
+    flex: 1;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    min-height: var(--touch-target-min);
+    padding: var(--space-medium);
+    cursor: pointer;
+  }
+  #screen-detail .toast {
+    position: fixed;
+    left: 50%;
+    bottom: 96px;
+    transform: translateX(-50%) translateY(12px);
+    background: var(--color-secondary);
+    color: #fff;
+    padding: var(--space-small) var(--space-medium);
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-body);
+    box-shadow: var(--shadow-card);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    z-index: 100;
+    text-align: center;
+    max-width: calc(100% - (var(--space-large) * 2));
+  }
+  #screen-detail .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+
+  /* ===== หน้าตะกร้า (screen-cart) ===== */
+  #screen-cart { padding-bottom: 140px; }
+  #screen-cart .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #screen-cart .btn-back {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+  }
+  #screen-cart .cart-list {
+    padding: var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-medium);
+  }
+  #screen-cart .cart-item {
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    display: flex;
+    gap: var(--space-medium);
+  }
+  #screen-cart .cart-item-image {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  #screen-cart .cart-item-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  #screen-cart .cart-item-info .options {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-cart .cart-item-info .note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    font-style: italic;
+  }
+  #screen-cart .cart-item-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-small);
+  }
+  #screen-cart .cart-item-footer .price {
+    font-weight: 700;
+  }
+  #screen-cart .cart-item-actions {
+    display: flex;
+    gap: var(--space-small);
+  }
+  #screen-cart .btn-icon-secondary {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: 1px solid var(--color-secondary);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    border-radius: var(--radius-button);
+    font-size: 14px;
+    cursor: pointer;
+  }
+  #screen-cart .summary-card {
+    margin: 0 var(--space-medium) var(--space-medium);
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-small);
+  }
+  #screen-cart .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-body);
+  }
+  #screen-cart .summary-row.total {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+    border-top: 1px solid #E0E0E0;
+    padding-top: var(--space-small);
+    margin-top: var(--space-small);
+  }
+  #screen-cart .payment-note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    padding: 0 var(--space-medium) var(--space-large);
+  }
+  #screen-cart .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-medium);
+    padding: var(--space-large) var(--space-medium);
+  }
+  #screen-cart .empty-state-illustration {
+    width: 96px;
+    height: 96px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+  }
+  #screen-cart .empty-state p {
+    color: var(--color-text-secondary);
+  }
+  #screen-cart .empty-state .btn-secondary-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+    padding: 0 var(--space-large);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--radius-button);
+    color: var(--color-secondary);
+    background: var(--color-background);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    cursor: pointer;
+  }
+  #screen-cart .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-background);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  #screen-cart .bottom-bar .total-price {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  #screen-cart .bottom-bar .total-price .caption {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-cart .bottom-bar .total-price .value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+  #screen-cart .btn-primary {
+    flex: 1;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    min-height: var(--touch-target-min);
+    padding: var(--space-medium);
+    cursor: pointer;
+  }
+  #screen-cart .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+
+  /* ===== หน้าสถานะออเดอร์ (screen-status) ===== */
+  #screen-status { padding-bottom: var(--space-large); }
+  #screen-status .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  #screen-status .topbar .table-badge {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-status .live-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-small);
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-status .live-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--color-status-progress);
+  }
+  #screen-status .status-hero {
+    padding: var(--space-large) var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-small);
+    text-align: center;
+  }
+  #screen-status .status-badge-large {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-small);
+    padding: var(--space-small) var(--space-large);
+    border-radius: 999px;
+    font-size: var(--font-size-h3);
+    font-weight: 700;
+  }
+  #screen-status .status-badge-large::before {
+    content: '';
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+  }
+  #screen-status .status-badge-large.status-pending {
+    background: rgba(153,153,153,0.15);
+    color: var(--color-status-pending);
+  }
+  #screen-status .status-badge-large.status-pending::before { background: var(--color-status-pending); }
+  #screen-status .status-badge-large.status-progress {
+    background: rgba(255,107,0,0.15);
+    color: var(--color-status-progress);
+  }
+  #screen-status .status-badge-large.status-progress::before { background: var(--color-status-progress); }
+  #screen-status .status-badge-large.status-done {
+    background: rgba(46,125,50,0.15);
+    color: var(--color-status-done);
+  }
+  #screen-status .status-badge-large.status-done::before { background: var(--color-status-done); }
+  #screen-status .status-hero p {
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-caption);
+  }
+  #screen-status .step-indicator {
+    display: flex;
+    padding: 0 var(--space-large) var(--space-large);
+  }
+  #screen-status .step {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: var(--space-small);
+    position: relative;
+  }
+  #screen-status .step:not(:last-child)::after {
+    content: '';
+    position: absolute;
+    top: 16px;
+    left: 50%;
+    width: 100%;
+    height: 3px;
+    background: #E0E0E0;
+    z-index: 0;
+  }
+  #screen-status .step.completed:not(:last-child)::after {
+    background: var(--color-status-done);
+  }
+  #screen-status .step-dot {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: #E0E0E0;
+    color: #fff;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    font-size: var(--font-size-caption);
+    z-index: 1;
+  }
+  #screen-status .step.completed .step-dot {
+    background: var(--color-status-done);
+  }
+  #screen-status .step.active .step-dot {
+    background: var(--color-status-progress);
+  }
+  #screen-status .step-label {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    text-align: center;
+  }
+  #screen-status .step.completed .step-label,
+  #screen-status .step.active .step-label {
+    color: var(--color-text-primary);
+    font-weight: 500;
+  }
+  #screen-status .order-card {
+    margin: 0 var(--space-medium) var(--space-medium);
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+  }
+  #screen-status .order-card h2 {
+    margin-bottom: var(--space-medium);
+  }
+  #screen-status .order-line {
+    display: flex;
+    justify-content: space-between;
+    padding: var(--space-small) 0;
+    border-bottom: 1px solid #F0F0F0;
+  }
+  #screen-status .order-line:last-child { border-bottom: none; }
+  #screen-status .order-line .name { font-weight: 500; }
+  #screen-status .order-line .options {
+    display: block;
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  #screen-status .order-total {
+    display: flex;
+    justify-content: space-between;
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+    margin-top: var(--space-medium);
+    padding-top: var(--space-medium);
+    border-top: 1px solid #E0E0E0;
+  }
+  #screen-status .btn-secondary {
+    display: block;
+    width: calc(100% - (var(--space-medium) * 2));
+    margin: 0 var(--space-medium) var(--space-medium);
+    background: transparent;
+    color: var(--color-secondary);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    min-height: var(--touch-target-min);
+    padding: var(--space-medium);
+    cursor: pointer;
+    text-align: center;
+  }
+  #screen-status .btn-secondary:last-child { margin-bottom: 0; }
+  #screen-status .btn-secondary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+
+  <!-- ===== หน้าเมนู ===== -->
+  <section class="screen active" id="screen-menu">
+    <header class="topbar">
+      <div class="topbar-title">
+        <span class="table-badge">โต๊ะ 5</span>
+        <h1>เมนูร้านกาแฟ</h1>
+      </div>
+      <button class="cart-icon-btn" aria-label="ตะกร้าสินค้า">
+        🛒
+        <span class="cart-count">0</span>
+      </button>
+    </header>
+
+    <nav class="category-tabs">
+      <button class="tab active">กาแฟ</button>
+      <button class="tab">เครื่องดื่มอื่น ๆ</button>
+      <button class="tab">ของหวาน/เบเกอรี่</button>
+    </nav>
+
+    <main>
+      <section class="menu-section">
+        <h2>กาแฟ</h2>
+
+        <div class="menu-card" data-slug="latte-hot" data-available="true">
+          <div class="menu-card-image">☕</div>
+          <div class="menu-card-info">
+            <h3>ลาเต้ร้อน</h3>
+            <p class="price">฿55</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มลาเต้ร้อนลงตะกร้า">+</button>
+        </div>
+
+        <div class="menu-card" data-slug="latte-iced" data-available="true">
+          <div class="menu-card-image">🧊</div>
+          <div class="menu-card-info">
+            <h3>ลาเต้เย็น</h3>
+            <p class="price">฿60</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มลาเต้เย็นลงตะกร้า">+</button>
+        </div>
+
+        <div class="menu-card unavailable" data-slug="cappuccino-iced" data-available="false">
+          <div class="menu-card-image">☕</div>
+          <div class="menu-card-info">
+            <h3>คาปูชิโน่เย็น</h3>
+            <p class="price">฿60</p>
+            <span class="status-badge status-unavailable">หมด</span>
+          </div>
+          <button class="btn-add" disabled aria-label="คาปูชิโน่เย็นหมดชั่วคราว">+</button>
+        </div>
+
+        <div class="menu-card" data-slug="americano" data-available="true">
+          <div class="menu-card-image">☕</div>
+          <div class="menu-card-info">
+            <h3>อเมริกาโน่</h3>
+            <p class="price">฿45</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มอเมริกาโน่ลงตะกร้า">+</button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h2>เครื่องดื่มอื่น ๆ</h2>
+
+        <div class="menu-card" data-slug="chocolate-iced" data-available="true">
+          <div class="menu-card-image">🍫</div>
+          <div class="menu-card-info">
+            <h3>ช็อกโกแลตเย็น</h3>
+            <p class="price">฿60</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มช็อกโกแลตเย็นลงตะกร้า">+</button>
+        </div>
+
+        <div class="menu-card" data-slug="matcha-latte" data-available="true">
+          <div class="menu-card-image">🍵</div>
+          <div class="menu-card-info">
+            <h3>ชาเขียวลาเต้</h3>
+            <p class="price">฿60</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มชาเขียวลาเต้ลงตะกร้า">+</button>
+        </div>
+      </section>
+
+      <section class="menu-section">
+        <h2>ของหวาน/เบเกอรี่</h2>
+
+        <div class="menu-card" data-slug="brownie" data-available="true">
+          <div class="menu-card-image">🍰</div>
+          <div class="menu-card-info">
+            <h3>บราวนี่</h3>
+            <p class="price">฿50</p>
+          </div>
+          <button class="btn-add" aria-label="เพิ่มบราวนี่ลงตะกร้า">+</button>
+        </div>
+      </section>
+    </main>
+  </section>
+
+  <!-- ===== หน้าปรับตัวเลือกเมนู ===== -->
+  <section class="screen" id="screen-detail">
+    <header class="topbar">
+      <button class="btn-back" aria-label="ย้อนกลับไปหน้าเมนู">←</button>
+      <h1>ปรับตัวเลือกเมนู</h1>
+    </header>
+
+    <div class="product-hero">
+      <div class="product-hero-image" id="detailProductImage">🧊</div>
+      <h2 id="detailProductName">ลาเต้เย็น</h2>
+      <p class="price" id="detailProductBasePrice">฿60</p>
+    </div>
+
+    <form id="detailOptionForm">
+      <section class="option-section">
+        <h2>ขนาด</h2>
+        <div class="pill-group">
+          <label class="pill-option"><input type="radio" name="size">S</label>
+          <label class="pill-option selected"><input type="radio" name="size" checked>M</label>
+          <label class="pill-option"><input type="radio" name="size">L</label>
+        </div>
+      </section>
+
+      <section class="option-section">
+        <h2>ร้อน/เย็น</h2>
+        <div class="pill-group">
+          <label class="pill-option"><input type="radio" name="temp">ร้อน</label>
+          <label class="pill-option selected"><input type="radio" name="temp" checked>เย็น</label>
+        </div>
+      </section>
+
+      <section class="option-section">
+        <h2>ระดับความหวาน</h2>
+        <div class="pill-group">
+          <label class="pill-option"><input type="radio" name="sweet">0%</label>
+          <label class="pill-option"><input type="radio" name="sweet">25%</label>
+          <label class="pill-option selected"><input type="radio" name="sweet" checked>50%</label>
+          <label class="pill-option"><input type="radio" name="sweet">75%</label>
+          <label class="pill-option"><input type="radio" name="sweet">100%</label>
+        </div>
+      </section>
+
+      <section class="option-section">
+        <h2>ชนิดนม</h2>
+        <div class="pill-group">
+          <label class="pill-option selected"><input type="radio" name="milk" checked>นมสด</label>
+          <label class="pill-option"><input type="radio" name="milk">นมพร่องมันเนย</label>
+          <label class="pill-option"><input type="radio" name="milk">นมอัลมอนด์</label>
+          <label class="pill-option"><input type="radio" name="milk">ไม่ใส่นม</label>
+        </div>
+      </section>
+
+      <section class="option-section">
+        <h2>ท็อปปิ้ง/เพิ่มช็อต</h2>
+        <span class="caption-note">เลือกได้มากกว่า 1 รายการ</span>
+        <div class="checkbox-list">
+          <div class="checkbox-row">
+            <label><input type="checkbox" data-topping="เพิ่มช็อตเอสเพรสโซ" data-price="15"> เพิ่มช็อตเอสเพรสโซ</label>
+            <span class="extra-price">+฿15</span>
+          </div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" data-topping="วิปครีม" data-price="10"> วิปครีม</label>
+            <span class="extra-price">+฿10</span>
+          </div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" data-topping="ไข่มุก" data-price="10"> ไข่มุก</label>
+            <span class="extra-price">+฿10</span>
+          </div>
+          <div class="checkbox-row">
+            <label><input type="checkbox" data-topping="เจลลี่กาแฟ" data-price="10"> เจลลี่กาแฟ</label>
+            <span class="extra-price">+฿10</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="option-section">
+        <h2>หมายเหตุพิเศษ</h2>
+        <textarea id="detailNoteInput" placeholder="เช่น หวานน้อย ไม่ใส่น้ำแข็ง แยกน้ำแข็ง ฯลฯ"></textarea>
+      </section>
+
+      <section class="option-section">
+        <h2>จำนวน</h2>
+        <div class="qty-stepper">
+          <button type="button" class="qty-btn" id="detailQtyMinus" aria-label="ลดจำนวน">−</button>
+          <span class="qty-value" id="detailQtyValue">1</span>
+          <button type="button" class="qty-btn" id="detailQtyPlus" aria-label="เพิ่มจำนวน">+</button>
+        </div>
+      </section>
+    </form>
+
+    <div class="bottom-bar">
+      <div class="total-price">
+        <span class="caption">ราคารวม</span>
+        <span class="value" id="detailTotalPrice">฿60</span>
+      </div>
+      <button class="btn-primary" id="detailAddToCartBtn" type="button">เพิ่มลงตะกร้า</button>
+    </div>
+
+    <div class="toast" id="detailToast"></div>
+  </section>
+
+  <!-- ===== หน้าตะกร้า ===== -->
+  <section class="screen" id="screen-cart">
+    <header class="topbar">
+      <button class="btn-back" aria-label="ย้อนกลับไปหน้าเมนู">←</button>
+      <h1>ตะกร้าของคุณ</h1>
+    </header>
+
+    <main>
+      <section class="cart-list" id="cartList"></section>
+
+      <section class="summary-card" id="summaryCard">
+        <div class="summary-row">
+          <span>ยอดรวมสินค้า</span>
+          <span id="summarySubtotal">฿0</span>
+        </div>
+        <div class="summary-row total">
+          <span>ราคารวมทั้งหมด</span>
+          <span id="summaryTotal">฿0</span>
+        </div>
+      </section>
+
+      <p class="payment-note" id="paymentNote">* ชำระเงินที่เคาน์เตอร์หลังรับเครื่องดื่ม/อาหารเรียบร้อยแล้ว (ระบบนี้ยังไม่รองรับการชำระเงินออนไลน์)</p>
+    </main>
+
+    <div class="bottom-bar">
+      <div class="total-price">
+        <span class="caption">ยอดรวม</span>
+        <span class="value" id="cartBottomTotal">฿0</span>
+      </div>
+      <button class="btn-primary" id="confirmBtn" type="button">ยืนยันสั่ง</button>
+    </div>
+  </section>
+
+  <!-- ===== หน้าสถานะออเดอร์ ===== -->
+  <section class="screen" id="screen-status">
+    <header class="topbar">
+      <span class="table-badge">โต๊ะ 5 · ออเดอร์ #0231</span>
+      <h1>สถานะออเดอร์ของคุณ</h1>
+      <span class="live-indicator"><span class="live-dot"></span>อัปเดตอัตโนมัติแบบเรียลไทม์ ไม่ต้องกดรีเฟรช</span>
+    </header>
+
+    <section class="status-hero">
+      <span class="status-badge-large" id="statusBadge">รับออเดอร์แล้ว</span>
+      <p id="statusDescription">ออเดอร์เข้าคิวบาริสต้าแล้ว รอเริ่มทำ</p>
+    </section>
+
+    <section class="step-indicator" id="stepIndicator">
+      <div class="step" data-step="0">
+        <span class="step-dot">✓</span>
+        <span class="step-label">รับออเดอร์แล้ว</span>
+      </div>
+      <div class="step" data-step="1">
+        <span class="step-dot">2</span>
+        <span class="step-label">กำลังทำ</span>
+      </div>
+      <div class="step" data-step="2">
+        <span class="step-dot">3</span>
+        <span class="step-label">เสร็จแล้ว</span>
+      </div>
+      <div class="step" data-step="3">
+        <span class="step-dot">4</span>
+        <span class="step-label">เสิร์ฟแล้ว</span>
+      </div>
+    </section>
+
+    <section class="order-card">
+      <h2>รายการที่สั่ง</h2>
+      <div id="orderLines"></div>
+      <div class="order-total">
+        <span>ยอดรวม</span>
+        <span id="orderTotal">฿0</span>
+      </div>
+    </section>
+
+    <button class="btn-secondary" id="nextStatusBtn" type="button">จำลองขั้นถัดไป</button>
+    <button class="btn-secondary" id="orderMoreBtn" type="button">สั่งเพิ่มเมนู</button>
+  </section>
+
+  <script>
+    (function () {
+      var MENU_ITEMS = {
+        'latte-hot': { name: 'ลาเต้ร้อน', price: 55, image: '☕' },
+        'latte-iced': { name: 'ลาเต้เย็น', price: 60, image: '🧊' },
+        'cappuccino-iced': { name: 'คาปูชิโน่เย็น', price: 60, image: '☕' },
+        'americano': { name: 'อเมริกาโน่', price: 45, image: '☕' },
+        'chocolate-iced': { name: 'ช็อกโกแลตเย็น', price: 60, image: '🍫' },
+        'matcha-latte': { name: 'ชาเขียวลาเต้', price: 60, image: '🍵' },
+        'brownie': { name: 'บราวนี่', price: 50, image: '🍰' }
+      };
+
+      var STATUSES = ['รับออเดอร์แล้ว', 'กำลังทำ', 'เสร็จแล้ว', 'เสิร์ฟแล้ว'];
+      var STATUS_DESCRIPTIONS = {
+        'รับออเดอร์แล้ว': 'ออเดอร์เข้าคิวบาริสต้าแล้ว รอเริ่มทำ',
+        'กำลังทำ': 'บาริสต้ากำลังเตรียมเครื่องดื่ม/อาหารของคุณ',
+        'เสร็จแล้ว': 'เตรียมเสร็จแล้ว รอพนักงานเสิร์ฟนำไปเสิร์ฟที่โต๊ะ',
+        'เสิร์ฟแล้ว': 'เสิร์ฟที่โต๊ะเรียบร้อยแล้ว ขอบคุณที่ใช้บริการ'
+      };
+      var STATUS_BADGE_CLASS = {
+        'รับออเดอร์แล้ว': 'status-pending',
+        'กำลังทำ': 'status-progress',
+        'เสร็จแล้ว': 'status-done',
+        'เสิร์ฟแล้ว': 'status-done'
+      };
+      var DEFAULT_ORDER = {
+        items: [
+          { name: 'ลาเต้เย็น', qty: 1, optionsText: 'ขนาด M · หวาน 50% · นมสด · เพิ่มช็อตเอสเพรสโซ', totalPrice: 85 },
+          { name: 'บราวนี่', qty: 1, optionsText: '', totalPrice: 50 }
+        ],
+        total: 135
+      };
+
+      // ----- in-memory state (ไม่ใช้ localStorage เพราะไฟล์นี้เปิดตรงผ่าน file://) -----
+      var cart = [];
+      var currentItem = null;
+      var qty = 1;
+      var lastOrder = null;
+      var orderStatus = STATUSES[0];
+
+      function formatBaht(amount) {
+        return '฿' + amount;
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function showScreen(slug) {
+        document.querySelectorAll('.screen').forEach(function (s) { s.classList.remove('active'); });
+        document.getElementById('screen-' + slug).classList.add('active');
+        window.scrollTo(0, 0);
+      }
+
+      function updateCartBadge() {
+        var totalQty = cart.reduce(function (sum, item) { return sum + (Number(item.qty) || 1); }, 0);
+        var badge = document.querySelector('#screen-menu .cart-count');
+        if (badge) badge.textContent = String(totalQty);
+      }
+
+      // ===== หน้าเมนู =====
+      function bindMenuScreen() {
+        document.querySelectorAll('#screen-menu .menu-card').forEach(function (card) {
+          var isAvailable = card.dataset.available !== 'false';
+          if (isAvailable) {
+            card.classList.add('clickable');
+            card.addEventListener('click', function () {
+              openProductDetail(card.dataset.slug);
+            });
+          }
+        });
+
+        document.querySelector('#screen-menu .cart-icon-btn').addEventListener('click', function (e) {
+          e.stopPropagation();
+          openCart();
+        });
+      }
+
+      // ===== หน้าปรับตัวเลือกเมนู =====
+      function setSelectedPill(name, labelText) {
+        var inputs = document.querySelectorAll('#screen-detail .pill-group input[name="' + name + '"]');
+        inputs.forEach(function (input) {
+          var option = input.closest('.pill-option');
+          var label = option.textContent.trim();
+          if (label === labelText) {
+            input.checked = true;
+            option.classList.add('selected');
+          } else {
+            input.checked = false;
+            option.classList.remove('selected');
+          }
+        });
+      }
+
+      function getSelectedPillLabel(name) {
+        var checked = document.querySelector('#screen-detail input[name="' + name + '"]:checked');
+        if (!checked) return '';
+        return checked.closest('.pill-option').textContent.trim();
+      }
+
+      function getSelectedToppings() {
+        return Array.prototype.slice.call(document.querySelectorAll('#screen-detail .checkbox-row input[type="checkbox"]:checked'));
+      }
+
+      function calcDetailTotal() {
+        var base = (currentItem && currentItem.price) || 0;
+        var toppingsTotal = getSelectedToppings().reduce(function (sum, el) {
+          return sum + (Number(el.dataset.price) || 0);
+        }, 0);
+        return (base + toppingsTotal) * qty;
+      }
+
+      function updateDetailTotalDisplay() {
+        var totalEl = document.getElementById('detailTotalPrice');
+        if (totalEl) totalEl.textContent = formatBaht(calcDetailTotal());
+      }
+
+      function resetOptionForm() {
+        // รีเซ็ตตัวเลือกกลับเป็นค่า default ทุกครั้งที่เปิดเมนูใหม่ (แต่ละเมนูเริ่มจากตัวเลือกเดียวกัน)
+        setSelectedPill('size', 'M');
+        setSelectedPill('temp', 'เย็น');
+        setSelectedPill('sweet', '50%');
+        setSelectedPill('milk', 'นมสด');
+
+        // แก้บั๊ก: ห้าม default checked สำหรับ "เพิ่มช็อตเอสเพรสโซ" (และท็อปปิ้งอื่น ๆ)
+        document.querySelectorAll('#screen-detail .checkbox-row input[type="checkbox"]').forEach(function (cb) {
+          cb.checked = false;
+        });
+
+        document.getElementById('detailNoteInput').value = '';
+        qty = 1;
+        document.getElementById('detailQtyValue').textContent = '1';
+
+        var toast = document.getElementById('detailToast');
+        toast.classList.remove('show');
+        toast.textContent = '';
+      }
+
+      function openProductDetail(slug) {
+        var data = MENU_ITEMS[slug];
+        if (!data) return;
+        currentItem = { slug: slug, name: data.name, price: data.price, image: data.image };
+
+        document.getElementById('detailProductName').textContent = currentItem.name;
+        document.getElementById('detailProductImage').textContent = currentItem.image;
+        document.getElementById('detailProductBasePrice').textContent = formatBaht(currentItem.price);
+
+        resetOptionForm();
+        updateDetailTotalDisplay();
+        showScreen('detail');
+      }
+
+      function showDetailToast(message) {
+        var toast = document.getElementById('detailToast');
+        toast.textContent = message;
+        toast.classList.add('show');
+      }
+
+      function bindDetailScreen() {
+        document.querySelectorAll('#screen-detail .pill-group').forEach(function (group) {
+          var options = group.querySelectorAll('.pill-option');
+          options.forEach(function (option) {
+            var input = option.querySelector('input');
+            input.addEventListener('change', function () {
+              options.forEach(function (o) { o.classList.remove('selected'); });
+              option.classList.add('selected');
+              updateDetailTotalDisplay();
+            });
+          });
+        });
+
+        document.querySelectorAll('#screen-detail .checkbox-row input[type="checkbox"]').forEach(function (checkbox) {
+          checkbox.addEventListener('change', updateDetailTotalDisplay);
+        });
+
+        var qtyValueEl = document.getElementById('detailQtyValue');
+        document.getElementById('detailQtyMinus').addEventListener('click', function () {
+          if (qty > 1) qty -= 1;
+          qtyValueEl.textContent = String(qty);
+          updateDetailTotalDisplay();
+        });
+        document.getElementById('detailQtyPlus').addEventListener('click', function () {
+          qty += 1;
+          qtyValueEl.textContent = String(qty);
+          updateDetailTotalDisplay();
+        });
+
+        document.getElementById('detailAddToCartBtn').addEventListener('click', function () {
+          var toppingEls = getSelectedToppings();
+          var toppings = toppingEls.map(function (el) { return el.dataset.topping; });
+          var optionsParts = [
+            'ขนาด ' + getSelectedPillLabel('size'),
+            getSelectedPillLabel('temp'),
+            'หวาน ' + getSelectedPillLabel('sweet'),
+            getSelectedPillLabel('milk')
+          ];
+          if (toppings.length > 0) optionsParts.push(toppings.join(', '));
+          var optionsText = optionsParts.filter(Boolean).join(' · ');
+
+          var note = document.getElementById('detailNoteInput').value.trim();
+          var toppingsTotal = toppingEls.reduce(function (sum, el) { return sum + (Number(el.dataset.price) || 0); }, 0);
+          var unitPrice = currentItem.price + toppingsTotal;
+
+          var cartItem = {
+            id: 'item-' + Date.now() + '-' + Math.random().toString(36).slice(2, 8),
+            slug: currentItem.slug,
+            name: currentItem.name,
+            image: currentItem.image,
+            qty: qty,
+            unitPrice: unitPrice,
+            totalPrice: unitPrice * qty,
+            optionsText: optionsText,
+            note: note
+          };
+
+          cart.push(cartItem);
+          updateCartBadge();
+
+          showDetailToast('เพิ่ม ' + currentItem.name + ' ลงตะกร้าแล้ว');
+
+          window.setTimeout(function () {
+            showScreen('menu');
+          }, 900);
+        });
+
+        document.querySelector('#screen-detail .btn-back').addEventListener('click', function () {
+          showScreen('menu');
+        });
+      }
+
+      // ===== หน้าตะกร้า =====
+      function calcCartTotal() {
+        return cart.reduce(function (sum, item) { return sum + (Number(item.totalPrice) || 0); }, 0);
+      }
+
+      function renderEmptyCartState() {
+        var list = document.getElementById('cartList');
+        list.innerHTML =
+          '<div class="empty-state">' +
+          '  <div class="empty-state-illustration">🧺</div>' +
+          '  <h3>ตะกร้าของคุณว่างเปล่า</h3>' +
+          '  <p>ยังไม่มีรายการในตะกร้า กลับไปเลือกเมนูที่ชอบได้เลย</p>' +
+          '  <button type="button" class="btn-secondary-link" id="emptyGoMenuBtn">ดูเมนู</button>' +
+          '</div>';
+        document.getElementById('emptyGoMenuBtn').addEventListener('click', function () {
+          showScreen('menu');
+        });
+      }
+
+      function renderCartItemEl(item) {
+        var div = document.createElement('div');
+        div.className = 'cart-item';
+        div.dataset.id = item.id;
+
+        var noteHtml = item.note ? '<span class="note">หมายเหตุ: ' + escapeHtml(item.note) + '</span>' : '';
+
+        div.innerHTML =
+          '<div class="cart-item-image">' + (item.image || '☕') + '</div>' +
+          '<div class="cart-item-info">' +
+          '  <h3>' + escapeHtml(item.name) + ' x' + item.qty + '</h3>' +
+          '  <span class="options">' + escapeHtml(item.optionsText || 'ไม่มีตัวเลือกเสริม') + '</span>' +
+          noteHtml +
+          '  <div class="cart-item-footer">' +
+          '    <span class="price">' + formatBaht(item.totalPrice) + '</span>' +
+          '    <div class="cart-item-actions">' +
+          '      <button class="btn-icon-secondary" type="button" data-remove-id="' + item.id + '" aria-label="ลบ' + escapeHtml(item.name) + 'ออกจากตะกร้า">ลบ</button>' +
+          '    </div>' +
+          '  </div>' +
+          '</div>';
+        return div;
+      }
+
+      function updateCartSummary() {
+        var total = calcCartTotal();
+        document.getElementById('summarySubtotal').textContent = formatBaht(total);
+        document.getElementById('summaryTotal').textContent = formatBaht(total);
+        document.getElementById('cartBottomTotal').textContent = formatBaht(total);
+      }
+
+      function renderCart() {
+        var list = document.getElementById('cartList');
+        var summaryCard = document.getElementById('summaryCard');
+        var paymentNote = document.getElementById('paymentNote');
+        var confirmBtn = document.getElementById('confirmBtn');
+
+        list.innerHTML = '';
+
+        if (cart.length === 0) {
+          renderEmptyCartState();
+          summaryCard.style.display = 'none';
+          paymentNote.style.display = 'none';
+          confirmBtn.disabled = true;
+        } else {
+          cart.forEach(function (item) {
+            list.appendChild(renderCartItemEl(item));
+          });
+          summaryCard.style.display = '';
+          paymentNote.style.display = '';
+          confirmBtn.disabled = false;
+
+          list.querySelectorAll('[data-remove-id]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var id = btn.dataset.removeId;
+              cart = cart.filter(function (item) { return item.id !== id; });
+              updateCartBadge();
+              renderCart();
+            });
+          });
+        }
+
+        updateCartSummary();
+      }
+
+      function openCart() {
+        renderCart();
+        showScreen('cart');
+      }
+
+      function bindCartScreen() {
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+          if (cart.length === 0) return;
+
+          lastOrder = {
+            items: cart.slice(),
+            total: calcCartTotal(),
+            tableLabel: 'โต๊ะ 5',
+            orderNo: '#0231'
+          };
+          orderStatus = STATUSES[0];
+          cart = [];
+          updateCartBadge();
+
+          renderOrderLines();
+          renderOrderStatus();
+          showScreen('status');
+        });
+
+        document.querySelector('#screen-cart .btn-back').addEventListener('click', function () {
+          showScreen('menu');
+        });
+      }
+
+      // ===== หน้าสถานะออเดอร์ =====
+      function renderOrderLines() {
+        var order = lastOrder || DEFAULT_ORDER;
+        var container = document.getElementById('orderLines');
+        container.innerHTML = '';
+        order.items.forEach(function (item) {
+          var line = document.createElement('div');
+          line.className = 'order-line';
+          var optionsHtml = item.optionsText ? '<span class="options">' + escapeHtml(item.optionsText) + '</span>' : '';
+          line.innerHTML =
+            '<div><span class="name">' + escapeHtml(item.name) + ' x' + item.qty + '</span>' + optionsHtml + '</div>' +
+            '<span>' + formatBaht(item.totalPrice) + '</span>';
+          container.appendChild(line);
+        });
+        document.getElementById('orderTotal').textContent = formatBaht(order.total);
+      }
+
+      function renderOrderStatus() {
+        var status = orderStatus;
+        var index = STATUSES.indexOf(status);
+
+        var badge = document.getElementById('statusBadge');
+        badge.textContent = status;
+        badge.className = 'status-badge-large ' + STATUS_BADGE_CLASS[status];
+
+        document.getElementById('statusDescription').textContent = STATUS_DESCRIPTIONS[status];
+
+        document.querySelectorAll('#screen-status .step').forEach(function (stepEl) {
+          var stepIndex = Number(stepEl.dataset.step);
+          stepEl.classList.remove('completed', 'active');
+          var dot = stepEl.querySelector('.step-dot');
+          if (stepIndex < index) {
+            stepEl.classList.add('completed');
+            dot.textContent = '✓';
+          } else if (stepIndex === index) {
+            stepEl.classList.add('active');
+            dot.textContent = String(stepIndex + 1);
+          } else {
+            dot.textContent = String(stepIndex + 1);
+          }
+        });
+
+        var nextBtn = document.getElementById('nextStatusBtn');
+        nextBtn.disabled = index >= STATUSES.length - 1;
+      }
+
+      function bindStatusScreen() {
+        document.getElementById('nextStatusBtn').addEventListener('click', function () {
+          var index = STATUSES.indexOf(orderStatus);
+          if (index < STATUSES.length - 1) {
+            orderStatus = STATUSES[index + 1];
+            renderOrderStatus();
+          }
+        });
+
+        document.getElementById('orderMoreBtn').addEventListener('click', function () {
+          showScreen('menu');
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        bindMenuScreen();
+        bindDetailScreen();
+        bindCartScreen();
+        bindStatusScreen();
+
+        updateCartBadge();
+        showScreen('menu');
+      });
+    })();
+  </script>
+
+</body>
+</html>
