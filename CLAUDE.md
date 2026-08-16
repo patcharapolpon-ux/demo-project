@@ -38,5 +38,6 @@
   - `/feature-list` (subagent `feature-list-writer`) — ตรวจสอบ backlog เทียบ spec แล้วอัปเดต `feature-list.md`
   - `/user-journey` (subagent `user-journey-writer`) — สร้าง/อัปเดต user journey diagram ใน `02-design/01-prototypes/`
   - `/audit-backlog` — รัน `feature-list` ต่อด้วย `user-journey` ให้ครบทุก requirement ในรอบเดียว
+  - `/prototype` (subagent `prototype-writer`) — สร้าง/อัปเดต UI prototype แบบ HTML mockup ใน `02-design/01-prototypes/mockups/` โดยอ้างอิง requirement + journey + `DESIGN.md` ทำได้ทั้งหมดทุก requirement หรือระบุเจาะจงบางรายการ เสนอแผนให้ user ยืนยันก่อนสร้างไฟล์จริงเสมอ และถามทุกครั้งว่าจะสร้าง folder version ใหม่หรือแก้ไข version ล่าสุดเมื่อมี prototype เดิมอยู่แล้ว ถ้ายังไม่มี `DESIGN.md` จะถามข้อมูล (โทนสี/สไตล์/ภาพตัวอย่าง) เพื่อสร้างไฟล์นี้ก่อน
   - ทุก skill กำหนดให้ main conversation ต้องเคลียร์ประเด็นคลุมเครือกับ user ผ่าน `AskUserQuestion` ก่อนเรียก subagent เสมอ — subagent เองห้ามถามคำถามผู้ใช้
 - เมื่อมีการนำโค้ดแอปพลิเคชันจริงเข้ามาในโปรเจกต์นี้ ให้อัปเดตไฟล์นี้ด้วย tech stack, คำสั่ง setup/build/lint/test และสถาปัตยกรรมโค้ดที่แท้จริง
