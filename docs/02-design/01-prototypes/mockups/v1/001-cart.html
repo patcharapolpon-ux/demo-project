@@ -1,0 +1,428 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ตะกร้าของฉัน - สั่งกาแฟจากโต๊ะ QR</title>
+<!--
+  Mockup: หน้าตะกร้า/สรุปออเดอร์ก่อนยืนยันสั่ง (ขั้นตอน 4-5 ใน user journey)
+  Requirement: docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md (20260802-001)
+  Journey: docs/02-design/01-prototypes/20260802-001-table-qr-ordering-journey.md
+  บทบาท: ลูกค้า — ตรวจสอบรายการ+ตัวเลือกเสริมที่ปรับไว้, ราคารวม, กดยืนยันสั่ง (ปุ่ม primary เดียวของหน้า ตาม UX rule)
+  หมายเหตุ: การชำระเงินอยู่นอกขอบเขต (out of scope) — จึงมีข้อความแจ้งว่าชำระที่เคาน์เตอร์ ไม่มีปุ่มชำระเงินในหน้านี้
+
+  หมายเหตุ interactive prototype (2026-08-16): เชื่อมโยง 4 หน้าจอผ่าน vanilla JS + localStorage (ไม่มี backend จริง)
+  - โหลดรายการจริงจาก localStorage key "coffeeOrderCart" แทนข้อมูล mock; ตะกร้าว่าง -> แสดง empty state ตาม pattern illustration/empty-state ใน DESIGN.md
+  - แต่ละรายการลบได้ทันที (อัปเดต localStorage + คำนวณราคารวมใหม่); ดุลยพินิจ: เอาปุ่ม "แก้ไข" ของรายการเดิมออก เพราะยังไม่มี flow แก้ไขรายการที่เพิ่มในตะกร้าแล้ว (นอกขอบเขตงานนี้) การคงปุ่มที่กดแล้วไม่ทำงานจะทำให้สับสน
+  - ปุ่ม "ยืนยันสั่ง": บันทึก snapshot ออเดอร์ล่าสุดไว้ที่ localStorage key "coffeeLastOrder" (เพื่อให้หน้าสถานะออเดอร์แสดงรายการที่สั่งจริงได้), เคลียร์ตะกร้า, ตั้งสถานะเริ่มต้นเป็น "รับออเดอร์แล้ว" ที่ key "coffeeOrderStatus", แล้ว navigate ไป 001-order-status.html
+-->
+<style>
+  :root {
+    --color-primary: #FF6B00;
+    --color-secondary: #000000;
+    --color-background: #FFFFFF;
+    --color-text-primary: #111111;
+    --color-text-secondary: #666666;
+    --color-status-pending: #999999;
+    --color-status-progress: #FF6B00;
+    --color-status-done: #2E7D32;
+    --color-status-unavailable: #B00020;
+
+    --font-family-base: 'Noto Sans Thai', 'IBM Plex Sans Thai', sans-serif;
+    --font-size-h1: 28px;
+    --font-size-h2: 22px;
+    --font-size-h3: 18px;
+    --font-size-body: 16px;
+    --font-size-caption: 14px;
+    --font-size-button: 16px;
+
+    --space-small: 8px;
+    --space-medium: 16px;
+    --space-large: 24px;
+
+    --radius-button: 12px;
+    --radius-card: 16px;
+    --radius-input: 8px;
+
+    --shadow-card: 0 2px 8px rgba(0,0,0,0.08);
+    --touch-target-min: 44px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: var(--font-family-base);
+    background: #FAFAFA;
+    color: var(--color-text-primary);
+    font-size: var(--font-size-body);
+    line-height: 1.5;
+    padding-bottom: 140px;
+  }
+  h1 { font-size: var(--font-size-h1); font-weight: 700; }
+  h2 { font-size: var(--font-size-h2); font-weight: 700; }
+  h3 { font-size: var(--font-size-h3); font-weight: 700; }
+
+  .topbar {
+    background: var(--color-background);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+    box-shadow: var(--shadow-card);
+    position: sticky;
+    top: 0;
+    z-index: 10;
+  }
+  .btn-back {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: none;
+    background: transparent;
+    font-size: 20px;
+    cursor: pointer;
+  }
+
+  .cart-list {
+    padding: var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-medium);
+  }
+  .cart-item {
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    display: flex;
+    gap: var(--space-medium);
+  }
+  .cart-item-image {
+    flex-shrink: 0;
+    width: 56px;
+    height: 56px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 28px;
+  }
+  .cart-item-info { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .cart-item-info .options {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  .cart-item-info .note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    font-style: italic;
+  }
+  .cart-item-footer {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-top: var(--space-small);
+  }
+  .cart-item-footer .price {
+    font-weight: 700;
+  }
+  .cart-item-actions {
+    display: flex;
+    gap: var(--space-small);
+  }
+  .btn-icon-secondary {
+    min-width: var(--touch-target-min);
+    min-height: var(--touch-target-min);
+    border: 1px solid var(--color-secondary);
+    background: var(--color-background);
+    color: var(--color-secondary);
+    border-radius: var(--radius-button);
+    font-size: 14px;
+    cursor: pointer;
+  }
+
+  .summary-card {
+    margin: 0 var(--space-medium) var(--space-medium);
+    background: var(--color-background);
+    border-radius: var(--radius-card);
+    box-shadow: var(--shadow-card);
+    padding: var(--space-medium);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-small);
+  }
+  .summary-row {
+    display: flex;
+    justify-content: space-between;
+    font-size: var(--font-size-body);
+  }
+  .summary-row.total {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+    border-top: 1px solid #E0E0E0;
+    padding-top: var(--space-small);
+    margin-top: var(--space-small);
+  }
+  .payment-note {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+    padding: 0 var(--space-medium) var(--space-large);
+  }
+
+  .empty-state {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    text-align: center;
+    gap: var(--space-medium);
+    padding: var(--space-large) var(--space-medium);
+  }
+  .empty-state-illustration {
+    width: 96px;
+    height: 96px;
+    border-radius: var(--radius-card);
+    background: #FFF1E6;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 48px;
+  }
+  .empty-state p {
+    color: var(--color-text-secondary);
+  }
+  .empty-state .btn-secondary-link {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: var(--touch-target-min);
+    padding: 0 var(--space-large);
+    border: 1px solid var(--color-secondary);
+    border-radius: var(--radius-button);
+    color: var(--color-secondary);
+    background: var(--color-background);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    cursor: pointer;
+  }
+
+  .bottom-bar {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background: var(--color-background);
+    box-shadow: 0 -2px 8px rgba(0,0,0,0.08);
+    padding: var(--space-medium);
+    display: flex;
+    align-items: center;
+    gap: var(--space-medium);
+  }
+  .bottom-bar .total-price {
+    display: flex;
+    flex-direction: column;
+    flex-shrink: 0;
+  }
+  .bottom-bar .total-price .caption {
+    font-size: var(--font-size-caption);
+    color: var(--color-text-secondary);
+  }
+  .bottom-bar .total-price .value {
+    font-weight: 700;
+    font-size: var(--font-size-h3);
+  }
+  .btn-primary {
+    flex: 1;
+    background: var(--color-primary);
+    color: #fff;
+    border: none;
+    border-radius: var(--radius-button);
+    font-size: var(--font-size-button);
+    font-weight: 500;
+    min-height: var(--touch-target-min);
+    padding: var(--space-medium);
+    cursor: pointer;
+  }
+  .btn-primary:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+</style>
+</head>
+<body>
+
+  <header class="topbar">
+    <button class="btn-back" aria-label="ย้อนกลับไปหน้าเมนู">←</button>
+    <h1>ตะกร้าของคุณ</h1>
+  </header>
+
+  <main>
+    <section class="cart-list" id="cartList"></section>
+
+    <section class="summary-card" id="summaryCard">
+      <div class="summary-row">
+        <span>ยอดรวมสินค้า</span>
+        <span id="summarySubtotal">฿0</span>
+      </div>
+      <div class="summary-row total">
+        <span>ราคารวมทั้งหมด</span>
+        <span id="summaryTotal">฿0</span>
+      </div>
+    </section>
+
+    <p class="payment-note" id="paymentNote">* ชำระเงินที่เคาน์เตอร์หลังรับเครื่องดื่ม/อาหารเรียบร้อยแล้ว (ระบบนี้ยังไม่รองรับการชำระเงินออนไลน์)</p>
+  </main>
+
+  <div class="bottom-bar">
+    <div class="total-price">
+      <span class="caption">ยอดรวม</span>
+      <span class="value" id="bottomTotal">฿0</span>
+    </div>
+    <button class="btn-primary" id="confirmBtn" type="button">ยืนยันสั่ง</button>
+  </div>
+
+  <script>
+    (function () {
+      var CART_KEY = 'coffeeOrderCart';
+      var STATUS_KEY = 'coffeeOrderStatus';
+      var LAST_ORDER_KEY = 'coffeeLastOrder';
+
+      function getCart() {
+        try {
+          var raw = localStorage.getItem(CART_KEY);
+          return raw ? JSON.parse(raw) : [];
+        } catch (e) {
+          return [];
+        }
+      }
+
+      function saveCart(cart) {
+        localStorage.setItem(CART_KEY, JSON.stringify(cart));
+      }
+
+      function formatBaht(amount) {
+        return '฿' + amount;
+      }
+
+      function calcTotal(cart) {
+        return cart.reduce(function (sum, item) { return sum + (Number(item.totalPrice) || 0); }, 0);
+      }
+
+      function renderEmptyState() {
+        var list = document.getElementById('cartList');
+        list.innerHTML =
+          '<div class="empty-state">' +
+          '  <div class="empty-state-illustration">🧺</div>' +
+          '  <h3>ตะกร้าของคุณว่างเปล่า</h3>' +
+          '  <p>ยังไม่มีรายการในตะกร้า กลับไปเลือกเมนูที่ชอบได้เลย</p>' +
+          '  <button type="button" class="btn-secondary-link" id="emptyGoMenuBtn">ดูเมนู</button>' +
+          '</div>';
+        document.getElementById('emptyGoMenuBtn').addEventListener('click', function () {
+          window.location.href = '001-menu.html';
+        });
+      }
+
+      function renderCartItem(item) {
+        var div = document.createElement('div');
+        div.className = 'cart-item';
+        div.dataset.id = item.id;
+
+        var noteHtml = item.note ? '<span class="note">หมายเหตุ: ' + escapeHtml(item.note) + '</span>' : '';
+
+        div.innerHTML =
+          '<div class="cart-item-image">' + (item.image || '☕') + '</div>' +
+          '<div class="cart-item-info">' +
+          '  <h3>' + escapeHtml(item.name) + ' x' + item.qty + '</h3>' +
+          '  <span class="options">' + escapeHtml(item.optionsText || 'ไม่มีตัวเลือกเสริม') + '</span>' +
+          noteHtml +
+          '  <div class="cart-item-footer">' +
+          '    <span class="price">' + formatBaht(item.totalPrice) + '</span>' +
+          '    <div class="cart-item-actions">' +
+          '      <button class="btn-icon-secondary" type="button" data-remove-id="' + item.id + '" aria-label="ลบ' + escapeHtml(item.name) + 'ออกจากตะกร้า">ลบ</button>' +
+          '    </div>' +
+          '  </div>' +
+          '</div>';
+        return div;
+      }
+
+      function escapeHtml(str) {
+        var div = document.createElement('div');
+        div.textContent = str;
+        return div.innerHTML;
+      }
+
+      function updateSummary(cart) {
+        var total = calcTotal(cart);
+        document.getElementById('summarySubtotal').textContent = formatBaht(total);
+        document.getElementById('summaryTotal').textContent = formatBaht(total);
+        document.getElementById('bottomTotal').textContent = formatBaht(total);
+      }
+
+      function render() {
+        var cart = getCart();
+        var list = document.getElementById('cartList');
+        var summaryCard = document.getElementById('summaryCard');
+        var paymentNote = document.getElementById('paymentNote');
+        var confirmBtn = document.getElementById('confirmBtn');
+
+        list.innerHTML = '';
+
+        if (cart.length === 0) {
+          renderEmptyState();
+          summaryCard.style.display = 'none';
+          paymentNote.style.display = 'none';
+          confirmBtn.disabled = true;
+        } else {
+          cart.forEach(function (item) {
+            list.appendChild(renderCartItem(item));
+          });
+          summaryCard.style.display = '';
+          paymentNote.style.display = '';
+          confirmBtn.disabled = false;
+
+          list.querySelectorAll('[data-remove-id]').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+              var id = btn.dataset.removeId;
+              var updatedCart = getCart().filter(function (item) { return item.id !== id; });
+              saveCart(updatedCart);
+              render();
+            });
+          });
+        }
+
+        updateSummary(cart);
+      }
+
+      function bindConfirmOrder() {
+        document.getElementById('confirmBtn').addEventListener('click', function () {
+          var cart = getCart();
+          if (cart.length === 0) return;
+
+          var lastOrder = {
+            items: cart,
+            total: calcTotal(cart),
+            tableLabel: 'โต๊ะ 5',
+            orderNo: '#0231'
+          };
+          localStorage.setItem(LAST_ORDER_KEY, JSON.stringify(lastOrder));
+          localStorage.setItem(STATUS_KEY, 'รับออเดอร์แล้ว');
+          saveCart([]);
+
+          window.location.href = '001-order-status.html';
+        });
+      }
+
+      function bindBackButton() {
+        document.querySelector('.btn-back').addEventListener('click', function () {
+          window.location.href = '001-menu.html';
+        });
+      }
+
+      document.addEventListener('DOMContentLoaded', function () {
+        render();
+        bindConfirmOrder();
+        bindBackButton();
+      });
+    })();
+  </script>
+
+</body>
+</html>
