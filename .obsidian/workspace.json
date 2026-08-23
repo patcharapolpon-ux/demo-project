@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "docs/01-requirements/backlog.md",
-                "mode": "source",
+                "file": "docs/01-requirements/02-plan/index.md",
+                "mode": "preview",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "backlog"
+              "title": "index"
             }
           }
         ]
@@ -83,7 +83,7 @@
       }
     ],
     "direction": "horizontal",
-    "width": 300
+    "width": 224.70001220703125
   },
   "right": {
     "id": "784e6eb9fabeefc6",
@@ -99,7 +99,7 @@
             "state": {
               "type": "backlink",
               "state": {
-                "file": "docs/01-requirements/01-spec/index.md",
+                "file": "docs/02-design/01-prototypes/20260802-003-audit-log-journey.md",
                 "collapseAll": false,
                 "extraContext": false,
                 "sortOrder": "alphabetical",
@@ -188,23 +188,43 @@
       "bases:Create new base": false
     }
   },
-  "active": "b2d3379c263c1281",
+  "active": "d4b645aeaf45c2b1",
   "lastOpenFiles": [
-    "docs/01-requirements/03-task/index.md",
-    "docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md",
-    "docs/01-requirements/01-spec/index.md",
-    "docs/04-retrospectives/index.md",
-    "docs/05-log/20260802-log.md",
-    "CLAUDE.md",
     "docs/01-requirements/backlog.md",
-    "docs/05-log/index.md",
-    "docs/03-testing/index.md",
-    "docs/03-testing/02-test-result/index.md",
+    "docs/01-requirements/feature-list.md",
+    "docs/02-design/01-prototypes/20260802-001-table-qr-ordering-journey.md",
     "docs/02-design/02-technical/index.md",
-    "docs/02-design/index.md",
+    "docs/02-design/02-technical/high-level-architecture.md",
     "docs/02-design/01-prototypes/index.md",
+    "docs/02-design/01-prototypes/DESIGN.md",
+    "docs/02-design/01-prototypes/20260802-004-pdpa-consent-journey.md",
+    "docs/02-design/01-prototypes/20260802-003-audit-log-journey.md",
+    "docs/02-design/01-prototypes/20260802-002-sales-dashboard-journey.md",
+    "docs/02-design/01-prototypes/mockups/v1/index.md",
+    "docs/03-testing/02-test-result/index.md",
+    "docs/05-log/20260823-log.md",
+    "CLAUDE.md.tmp.25500.24dbc439a2fe",
+    "docs/03-testing/01-test-plan/index.md",
+    "docs/04-retrospectives/index.md",
+    "docs/02-design/01-prototypes/mockups/v1/001-standalone.html",
+    "docs/02-design/01-prototypes/mockups/v1/001-product-detail.html",
+    "docs/02-design/01-prototypes/mockups/v1/001-order-status.html",
+    "docs/02-design/01-prototypes/mockups/v1/001-menu.html",
+    "docs/02-design/01-prototypes/mockups/v1/001-cart.html",
+    "docs/02-design/01-prototypes/mockups/v1",
+    "docs/02-design/01-prototypes/mockups",
     "docs/01-requirements/index.md",
+    "docs/00-archived/index.md",
+    "docs/02-design/01-prototypes/mockups/v1/001-cart.html.tmp.16308.57352cf169fc",
     "docs/01-requirements/02-plan/index.md",
-    "docs/00-archived/index.md"
+    "docs/01-requirements/01-spec/20260802-001-table-qr-ordering.md",
+    "CLAUDE.md",
+    "docs/05-log/20260815-log.md",
+    "Untitled 1.base",
+    "docs/01-requirements/01-spec/20260802-004-pdpa-consent.md",
+    "docs/01-requirements/01-spec/20260802-003-audit-log.md",
+    "docs/01-requirements/01-spec/20260802-002-sales-dashboard.md",
+    "docs/01-requirements/01-spec/index.md",
+    "docs/01-requirements/03-task/index.md"
   ]
 }
