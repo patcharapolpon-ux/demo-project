@@ -1,6 +1,6 @@
 ---
 name: api-spec
-description: สร้างหรืออัปเดตไฟล์ API Spec เชิงแนวคิด (docs/02-design/02-technical/api-spec.md) — เอกสารรายการ operation ของระบบ 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับ protocol/รูปแบบการสื่อสารเชิงเทคนิคใด ๆ (ไม่มี HTTP verb, URL path, status code) ประกอบด้วยรายชื่อ operation, ผู้เรียกใช้, ข้อมูลนำเข้า/ผลลัพธ์เชิงแนวคิด, กฎธุรกิจ/ข้อยกเว้น โดยอ้างอิง Backlog, Feature List, Spec, User Journey, high-level-architecture.md และ database-schema.md (ถ้ามี) ใช้ skill นี้เมื่อ user ขอให้ "สร้าง api spec", "ทำเอกสาร api", "ออกแบบ data contract", "ทำ operation contract" หรือเรียก /api-spec ตรง ๆ
+description: สร้างหรืออัปเดตไฟล์ API Spec เชิงแนวคิด (docs/02-design/02-technical/api-spec.md) — เอกสารรายการ operation ของระบบ 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับ protocol/รูปแบบการสื่อสารเชิงเทคนิคใด ๆ (ไม่มี HTTP verb, URL path, status code) ประกอบด้วยรายชื่อ operation, ผู้เรียกใช้, ข้อมูลนำเข้า/ผลลัพธ์เชิงแนวคิด, กฎธุรกิจ/ข้อยกเว้น โดยอ้างอิง Backlog, Feature List, Spec, User Journey, high-level-architecture.md และ database-schema.md (ถ้ามี) ถ้ามี tech-stack.md อยู่แล้ว จะเพิ่มหัวข้อท้ายไฟล์ "Technical Mapping" ที่ map operation ไปยัง protocol/กลไกจริงด้วย ใช้ skill นี้เมื่อ user ขอให้ "สร้าง api spec", "ทำเอกสาร api", "ออกแบบ data contract", "ทำ operation contract" หรือเรียก /api-spec ตรง ๆ
 ---
 
 # API Spec — สร้าง/อัปเดต API Spec เชิงแนวคิด
@@ -19,6 +19,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - Glob `docs/02-design/02-technical/high-level-architecture.md` — Read ถ้ามี เพื่อดูองค์ประกอบ/data flow เป็นฐานระบุ operation
 - Glob `docs/02-design/02-technical/database-schema.md` — Read ถ้ามี เพื่ออ้างอิงชื่อเอนทิตี/attribute ใน Input/Output ของ operation
 - Glob `docs/02-design/02-technical/api-spec.md` เพื่อดูว่ามีไฟล์เดิมอยู่แล้วหรือไม่ (Read ถ้ามี เพื่อดูกรอบการจัดกลุ่ม/ประเด็นคลุมเครือที่เคยตัดสินใจไว้แล้ว)
+- Glob `docs/02-design/02-technical/tech-stack.md` — ถ้ามี ให้ Read เพื่อเตรียมส่งต่อ subagent สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์ (ไม่ต้องถาม user อะไรเพิ่มสำหรับส่วนนี้ เพราะเป็นการอ้างอิงการตัดสินใจที่มีอยู่แล้ว ไม่ใช่ประเด็นคลุมเครือใหม่)
 
 ### 2. แจ้ง user ถ้ายังไม่มี high-level-architecture.md หรือ database-schema.md
 
@@ -53,6 +54,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - ขอบเขต backlog/spec/journey ทั้งหมดที่ต้องครอบคลุม (ปกติคือทุกรายการที่มีอยู่ในปัจจุบัน)
 - คำตอบทั้งหมดจากขั้นตอน 4 (ถ้ามี) หรือระบุว่า "ไม่มีประเด็นเพิ่มเติมนอกจาก spec ที่มีอยู่"
 - หมายเหตุว่ามี/ไม่มี `high-level-architecture.md` และ `database-schema.md` ให้อ้างอิง (จากขั้นตอน 2)
+- หมายเหตุว่ามี/ไม่มี `docs/02-design/02-technical/tech-stack.md` ให้อ้างอิง ถ้ามีให้ส่ง stack ฝั่ง backend/protocol ไปด้วย (สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์)
 
 ### 6. รายงานผลกลับ user
 
@@ -61,4 +63,4 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 ## หมายเหตุ
 
 - ไฟล์ `docs/02-design/02-technical/api-spec.md` เป็น living document เดียวของทั้งโปรเจกต์ — อัปเดตทับเนื้อหาหลักเสมอ แต่คงหัวข้อ "ประวัติการแก้ไข" ท้ายไฟล์ไว้ (ต่อท้าย ไม่ลบของเดิม)
-- เมื่อทีมเลือก protocol จริงแล้ว ให้สร้างเอกสารแยกต่างหากสำหรับ API design เชิงเทคนิค อย่านำรายละเอียด protocol มาผสมในไฟล์นี้
+- เมื่อทีมเลือก protocol จริงแล้ว (มี `tech-stack.md`) ให้เพิ่มได้แค่หัวข้อ "Technical Mapping" สรุป operation → กลไกจริงท้ายไฟล์ (ตามที่ระบุในขั้นตอน 5) ห้ามนำรายละเอียด protocol อื่น (เช่น payload schema เต็มรูปแบบ) มาผสมในหัวข้อ 1-5
