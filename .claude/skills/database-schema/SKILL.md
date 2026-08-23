@@ -1,6 +1,6 @@
 ---
 name: database-schema
-description: สร้างหรืออัปเดตไฟล์ Database Schema เชิงแนวคิด (docs/02-design/02-technical/database-schema.md) — เอกสารแบบจำลองข้อมูล 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับฐานข้อมูล/เทคโนโลยีใด ๆ ประกอบด้วยรายละเอียดแต่ละเอนทิตี/ตาราง (attribute, ชนิดข้อมูลเชิงแนวคิด, ข้อจำกัดเชิงธุรกิจ) และ ER Diagram เป็นอย่างน้อย โดยอ้างอิง Backlog, Feature List, Spec, User Journey ทั้งหมด และหัวข้อแบบจำลองข้อมูลใน high-level-architecture.md (ถ้ามี) ใช้ skill นี้เมื่อ user ขอให้ "สร้าง database schema", "ทำ ER diagram", "ออกแบบตารางข้อมูล", "ทำ database spec" หรือเรียก /database-schema ตรง ๆ
+description: สร้างหรืออัปเดตไฟล์ Database Schema เชิงแนวคิด (docs/02-design/02-technical/database-schema.md) — เอกสารแบบจำลองข้อมูล 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับฐานข้อมูล/เทคโนโลยีใด ๆ ประกอบด้วยรายละเอียดแต่ละเอนทิตี/ตาราง (attribute, ชนิดข้อมูลเชิงแนวคิด, ข้อจำกัดเชิงธุรกิจ) และ ER Diagram เป็นอย่างน้อย โดยอ้างอิง Backlog, Feature List, Spec, User Journey ทั้งหมด และหัวข้อแบบจำลองข้อมูลใน high-level-architecture.md (ถ้ามี) ถ้ามี tech-stack.md อยู่แล้ว จะเพิ่มหัวข้อท้ายไฟล์ "Technical Mapping" ที่แปลง attribute เป็น column/ชนิดข้อมูลจริงของ DBMS ที่เลือกด้วย ใช้ skill นี้เมื่อ user ขอให้ "สร้าง database schema", "ทำ ER diagram", "ออกแบบตารางข้อมูล", "ทำ database spec" หรือเรียก /database-schema ตรง ๆ
 ---
 
 # Database Schema — สร้าง/อัปเดต Database Schema เชิงแนวคิด
@@ -20,6 +20,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - Glob `docs/02-design/01-prototypes/*-journey.md`
 - Glob `docs/02-design/02-technical/high-level-architecture.md` — Read ถ้ามี เพื่อดูหัวข้อ "แบบจำลองข้อมูลเชิงแนวคิด" เป็นจุดเริ่มต้น
 - Glob `docs/02-design/02-technical/database-schema.md` เพื่อดูว่ามีไฟล์เดิมอยู่แล้วหรือไม่ (Read ถ้ามี เพื่อดูแนวทางแตกเอนทิตี/ประเด็นคลุมเครือที่เคยตัดสินใจไว้แล้ว)
+- Glob `docs/02-design/02-technical/tech-stack.md` — ถ้ามี ให้ Read เพื่อเตรียมส่งต่อ subagent สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์ (ไม่ต้องถาม user อะไรเพิ่มสำหรับส่วนนี้ เพราะเป็นการอ้างอิงการตัดสินใจที่มีอยู่แล้ว ไม่ใช่ประเด็นคลุมเครือใหม่)
 
 ### 2. แจ้ง user ถ้ายังไม่มี high-level-architecture.md
 
@@ -53,6 +54,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - แนวทางการแตกเอนทิตีที่ตกลงในขั้นตอน 3
 - ขอบเขต backlog/spec/journey ทั้งหมดที่ต้องครอบคลุม (ปกติคือทุกรายการที่มีอยู่ในปัจจุบัน)
 - คำตอบทั้งหมดจากขั้นตอน 4 (ถ้ามี) หรือระบุว่า "ไม่มีประเด็นเพิ่มเติมนอกจาก spec ที่มีอยู่"
+- หมายเหตุว่ามี/ไม่มี `docs/02-design/02-technical/tech-stack.md` ให้อ้างอิง ถ้ามีให้ส่งชื่อ DBMS ที่เลือกไปด้วย (สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์)
 
 ### 6. รายงานผลกลับ user
 
@@ -62,4 +64,4 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 
 - ไฟล์ `docs/02-design/02-technical/database-schema.md` เป็น living document เดียวของทั้งโปรเจกต์ — อัปเดตทับเนื้อหาหลักเสมอ แต่คงหัวข้อ "ประวัติการแก้ไข" ท้ายไฟล์ไว้ (ต่อท้าย ไม่ลบของเดิม)
 - เอกสารนี้แยกจาก `high-level-architecture.md` โดยตั้งใจ (ไม่ยุบรวม) — architecture.md คงหัวข้อเอนทิตีระดับสรุปไว้เหมือนเดิม ส่วน database-schema.md ขยายรายละเอียด attribute เต็ม ทั้งสองไฟล์ลิงก์ไป-กลับกัน
-- เมื่อทีมเลือก DBMS จริงแล้ว ให้สร้างเอกสารแยกต่างหากสำหรับ schema เชิงเทคนิค อย่านำรายละเอียด DBMS มาผสมในไฟล์นี้
+- เมื่อทีมเลือก DBMS จริงแล้ว (มี `tech-stack.md`) ให้เพิ่มได้แค่หัวข้อ "Technical Mapping" สรุป column/ชนิดข้อมูลจริงท้ายไฟล์ (ตามที่ระบุในขั้นตอน 5) ห้ามนำรายละเอียด DBMS อื่น เช่น index/migration มาผสมในหัวข้อ 1-5

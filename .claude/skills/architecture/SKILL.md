@@ -1,6 +1,6 @@
 ---
 name: architecture
-description: สร้างหรืออัปเดตไฟล์ High-Level Architecture เชิงแนวคิด (docs/02-design/02-technical/high-level-architecture.md) — เอกสารภาพรวมสถาปัตยกรรมระบบ 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับเทคโนโลยี/เฟรมเวิร์ก/ฐานข้อมูลใด ๆ ครอบคลุม system context, องค์ประกอบเชิงแนวคิด, data flow ตาม user journey, และแบบจำลองข้อมูลเชิงแนวคิด โดยอ้างอิง Backlog, Feature List, Spec และ User Journey ทั้งหมด ใช้ skill นี้เมื่อ user ขอให้ "สร้าง high level architecture", "ทำเอกสารสถาปัตยกรรมระบบ", "วาดภาพรวมระบบแบบ conceptual" หรือเรียก /architecture ตรง ๆ
+description: สร้างหรืออัปเดตไฟล์ High-Level Architecture เชิงแนวคิด (docs/02-design/02-technical/high-level-architecture.md) — เอกสารภาพรวมสถาปัตยกรรมระบบ 1 ไฟล์ต่อโปรเจกต์ที่ยังไม่ผูกมัดกับเทคโนโลยี/เฟรมเวิร์ก/ฐานข้อมูลใด ๆ ครอบคลุม system context, องค์ประกอบเชิงแนวคิด, data flow ตาม user journey, และแบบจำลองข้อมูลเชิงแนวคิด โดยอ้างอิง Backlog, Feature List, Spec และ User Journey ทั้งหมด ถ้ามี tech-stack.md อยู่แล้ว จะเพิ่มหัวข้อท้ายไฟล์ "Technical Mapping" ที่ map องค์ประกอบไปยังเทคโนโลยีจริงด้วย ใช้ skill นี้เมื่อ user ขอให้ "สร้าง high level architecture", "ทำเอกสารสถาปัตยกรรมระบบ", "วาดภาพรวมระบบแบบ conceptual" หรือเรียก /architecture ตรง ๆ
 ---
 
 # Architecture — สร้าง/อัปเดต High-Level Architecture เชิงแนวคิด
@@ -17,6 +17,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - Glob `docs/01-requirements/01-spec/*.md` (ยกเว้น `index.md`)
 - Glob `docs/02-design/01-prototypes/*-journey.md` เพื่อดูว่า backlog item ไหนมี journey แล้วบ้าง
 - Glob `docs/02-design/02-technical/high-level-architecture.md` เพื่อดูว่ามีไฟล์เดิมอยู่แล้วหรือไม่ (Read ถ้ามี เพื่อดูกรอบแนวคิด/ประเด็นคลุมเครือที่เคยตัดสินใจไว้แล้ว)
+- Glob `docs/02-design/02-technical/tech-stack.md` — ถ้ามี ให้ Read เพื่อเตรียมส่งต่อ subagent สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์ (ไม่ต้องถาม user อะไรเพิ่มสำหรับส่วนนี้ เพราะเป็นการอ้างอิงการตัดสินใจที่มีอยู่แล้ว ไม่ใช่ประเด็นคลุมเครือใหม่)
 
 ### 2. แจ้ง user ถ้ามี backlog item ที่ยังไม่มี journey
 
@@ -56,6 +57,7 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 - กรอบแนวคิดสถาปัตยกรรมที่ตกลงในขั้นตอน 3
 - ขอบเขต journey/spec ทั้งหมดที่ต้องครอบคลุม (ปกติคือทุกรายการที่มีอยู่ในปัจจุบัน) พร้อมระบุรายการที่ไม่มี journey อ้างอิง (ถ้ามี)
 - คำตอบทั้งหมดจากขั้นตอน 4 (ถ้ามี) หรือระบุว่า "ไม่มีประเด็นเพิ่มเติมนอกจาก spec ที่มีอยู่"
+- หมายเหตุว่ามี/ไม่มี `docs/02-design/02-technical/tech-stack.md` ให้อ้างอิง ถ้ามีให้ส่งสรุป stack ต่อ layer จากขั้นตอน 1 ไปด้วย (สำหรับเขียนหัวข้อ "Technical Mapping" ท้ายไฟล์)
 
 ### 6. รายงานผลกลับ user
 
@@ -64,4 +66,4 @@ Skill นี้ทำงานใน main conversation ทั้งหมด (�
 ## หมายเหตุ
 
 - ไฟล์ `docs/02-design/02-technical/high-level-architecture.md` เป็น living document เดียวของทั้งโปรเจกต์ — อัปเดตทับเนื้อหาหลักเสมอ แต่คงหัวข้อ "ประวัติการแก้ไข" ท้ายไฟล์ไว้ (ต่อท้าย ไม่ลบของเดิม)
-- เอกสารนี้เป็นชั้นแนวคิดที่มาก่อนเอกสารเทคนิคเฉพาะอื่นในโฟลเดอร์เดียวกัน (database schema, API design, การเลือกเทคโนโลยี) — เมื่อทีมเลือก tech stack แล้วให้สร้างเอกสารแยกต่างหากสำหรับรายละเอียดเชิงเทคนิค อย่านำรายละเอียด tech stack มาผสมในไฟล์นี้
+- เอกสารนี้เป็นชั้นแนวคิดที่มาก่อนเอกสารเทคนิคเฉพาะอื่นในโฟลเดอร์เดียวกัน (database schema, API design, การเลือกเทคโนโลยี) — เมื่อทีมเลือก tech stack แล้ว ให้เก็บรายละเอียดเชิงเทคนิคเต็มรูปแบบไว้ใน `tech-stack.md` เท่านั้น ไฟล์นี้เพิ่มได้แค่หัวข้อ "Technical Mapping" สรุป mapping ท้ายไฟล์ (ตามที่ระบุในขั้นตอน 5) ห้ามนำรายละเอียด tech stack อื่นมาผสมในหัวข้อ 1-9
